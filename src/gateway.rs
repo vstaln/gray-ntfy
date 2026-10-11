@@ -39,6 +39,7 @@ struct Daemon {
     config_path: PathBuf,
     store: Store,
     client: reqwest::Client,
+    acks: crate::busy::Acks,
 }
 
 impl Daemon {
@@ -88,8 +89,8 @@ impl Daemon {
                 }
             }
             Err(RunError::Busy) => {
-                self.store.requeue(&item.id)?;
-                tokio::time::sleep(Duration::from_millis(500)).await;
+                self.store
+                    .requeue_busy(&item.id, crate::busy::BUSY_RETRY_SECS)?;
             }
             Err(e) => {
                 let topic = crate::ntfy::publish_topic(&self.config);
@@ -131,6 +132,25 @@ impl Daemon {
             .await;
             return;
         }
+        let steer = crate::busy::command(&ev.message, "steer").map(str::to_string);
+        let steered = match &steer {
+            Some(t) if t.is_empty() => Some(crate::busy::STEER_USAGE),
+            Some(t) if crate::runner::steer(&conversation, t).await => {
+                Some(crate::busy::STEERING)
+            }
+            Some(_) => None,
+            None if crate::busy::steer_mode(&self.config)
+                && crate::runner::steer(&conversation, &ev.message).await =>
+            {
+                Some(crate::busy::STEERING)
+            }
+            None => None,
+        };
+        if let Some(note) = steered {
+            self.notify(note).await;
+            return;
+        }
+        let prompt = steer.clone().unwrap_or_else(|| ev.message.clone());
         let capacity = self
             .config
             .get("queue_capacity")
@@ -138,11 +158,39 @@ impl Daemon {
             .unwrap_or(1000);
         match self
             .store
-            .enqueue(&conversation, &ev.title, &ev.message, capacity)
+            .enqueue(&conversation, &ev.title, &prompt, capacity)
         {
-            Ok(id) => eprintln!("[ntfy] queued {id}"),
+            Ok(id) => {
+                eprintln!("[ntfy] queued {id}");
+                let ack = if steer.is_some() {
+                    Some(crate::busy::IDLE_STEER.to_string())
+                } else {
+                    self.acks.queued(
+                        &conversation,
+                        self.store.ahead(&conversation, &id).unwrap_or(0),
+                        crate::store::now_secs(),
+                    )
+                };
+                if let Some(ack) = ack {
+                    self.notify(&ack).await;
+                }
+            }
             Err(e) => eprintln!("[ntfy] dropped message: {e}"),
         }
+    }
+
+    async fn notify(&self, text: &str) {
+        let topic = crate::ntfy::publish_topic(&self.config);
+        let _ = crate::ntfy::publish(
+            &self.client,
+            &self.config,
+            &topic,
+            "gray",
+            None,
+            vec![],
+            text,
+        )
+        .await;
     }
 
     fn config_topic(&self) -> String {
@@ -285,6 +333,7 @@ pub async fn run(config_path: &Path) -> Result<(), String> {
         config_path: config_path.to_path_buf(),
         store,
         client: crate::ntfy::client(),
+        acks: crate::busy::Acks::default(),
     });
 
     // Workers drain the inbox; the stream loop only ever enqueues.

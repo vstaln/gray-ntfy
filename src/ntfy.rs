@@ -201,7 +201,7 @@ pub fn parse_event(line: &str) -> Option<Inbound> {
             .get("id")
             .and_then(Value::as_str)
             .map(str::to_string)
-            .unwrap_or_else(|| crate::store::uuid_hex()),
+            .unwrap_or_else(crate::store::uuid_hex),
         topic: ev
             .get("topic")
             .and_then(Value::as_str)

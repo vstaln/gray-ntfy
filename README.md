@@ -66,6 +66,8 @@ The service probes what this box actually supervises with (runit,
   or any token on the allowlist). The body is the prompt.
 - Replies land on the publish topic titled `gray`, tagged `gray-agent`.
 - `/new` or `/reset` as the whole body starts a fresh session.
+- `/steer <text>` adds guidance to the turn already running in that conversation ("Steering the current turn."); with nothing running it is sent as a new message.
+- Messages sent while a turn runs queue as their own next turn ("Queued — N ahead.", at most once per 30s). Set `busy_input_mode: "steer"` in the config to steer the running turn instead.
 - Everything else on the topic is ignored — there is no per-user
   identity to pair. `allow_all: true` in config admits every message
   (dev only).
