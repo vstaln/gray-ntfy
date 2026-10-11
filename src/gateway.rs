@@ -49,14 +49,21 @@ impl Daemon {
         let Some(item) = self.store.claim()? else {
             return Ok(false);
         };
-        let outcome = crate::runner::run_gray(
-            &self.config,
-            &self.config_path,
-            &item.conversation,
-            &item.text,
-            None,
+        let outcome = crate::busy::cancellable(
+            crate::runner::run_gray(
+                &self.config,
+                &self.config_path,
+                &item.conversation,
+                &item.text,
+                None,
+            ),
+            || self.store.cancel_requested(&item.id).unwrap_or(false),
         )
         .await;
+        let Some(outcome) = outcome else {
+            self.store.mark_cancelled(&item.id)?;
+            return Ok(true);
+        };
         match outcome {
             Ok(answer) => {
                 let topic = crate::ntfy::publish_topic(&self.config);
@@ -130,6 +137,14 @@ impl Daemon {
                 note,
             )
             .await;
+            return;
+        }
+        if crate::busy::command(&ev.message, "stop").is_some() {
+            let note = match self.store.cancel_conversation(&conversation) {
+                Ok(true) => crate::busy::STOPPED,
+                _ => crate::busy::NOTHING_RUNNING,
+            };
+            self.notify(note).await;
             return;
         }
         let steer = crate::busy::command(&ev.message, "steer").map(str::to_string);
