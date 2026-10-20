@@ -87,7 +87,8 @@ impl Daemon {
                         Err(_) => {
                             attempts += 1;
                             if attempts > 5 {
-                                self.store.fail(&item.id, "delivery failed: publish error")?;
+                                self.store
+                                    .fail(&item.id, "delivery failed: publish error")?;
                                 break;
                             }
                             tokio::time::sleep(Duration::from_secs(2)).await;
@@ -150,9 +151,7 @@ impl Daemon {
         let steer = crate::busy::command(&ev.message, "steer").map(str::to_string);
         let steered = match &steer {
             Some(t) if t.is_empty() => Some(crate::busy::STEER_USAGE),
-            Some(t) if crate::runner::steer(&conversation, t).await => {
-                Some(crate::busy::STEERING)
-            }
+            Some(t) if crate::runner::steer(&conversation, t).await => Some(crate::busy::STEERING),
             Some(_) => None,
             None if crate::busy::steer_mode(&self.config)
                 && crate::runner::steer(&conversation, &ev.message).await =>
@@ -217,7 +216,10 @@ impl Daemon {
 /// the stored `since` cursor (small overlap; ids dedupe), dispatch events.
 async fn session(daemon: &Daemon, shutdown: &Arc<tokio::sync::Notify>) -> Result<(), StreamEnd> {
     let topic = daemon.config_topic();
-    let mut url = format!("{}/{topic}/json?poll=1", crate::ntfy::server(&daemon.config));
+    let mut url = format!(
+        "{}/{topic}/json?poll=1",
+        crate::ntfy::server(&daemon.config)
+    );
     if let Ok(Some(since)) = daemon.store.meta_get("since") {
         if let Ok(ts) = since.parse::<f64>() {
             // Overlap a hair: ids dedupe replays.
@@ -240,7 +242,9 @@ async fn session(daemon: &Daemon, shutdown: &Arc<tokio::sync::Notify>) -> Result
         ));
     }
     if status.as_u16() == 404 {
-        return Err(StreamEnd::Fatal("ntfy topic not found (404); stopping".to_string()));
+        return Err(StreamEnd::Fatal(
+            "ntfy topic not found (404); stopping".to_string(),
+        ));
     }
     if !status.is_success() {
         return Err(StreamEnd::Retry(format!("ntfy stream HTTP {status}")));

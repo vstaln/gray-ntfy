@@ -160,7 +160,10 @@ pub async fn publish(
     let bytes = resp.bytes().await.map_err(|_| "ntfy reply unreadable")?;
     if !status.is_success() {
         let detail = String::from_utf8_lossy(&bytes);
-        return Err(format!("ntfy HTTP {status}: {}", &detail[..detail.len().min(160)]));
+        return Err(format!(
+            "ntfy HTTP {status}: {}",
+            &detail[..detail.len().min(160)]
+        ));
     }
     let id = serde_json::from_slice::<Value>(&bytes)
         .ok()
@@ -217,7 +220,12 @@ pub fn parse_event(line: &str) -> Option<Inbound> {
         tags: ev
             .get("tags")
             .and_then(Value::as_array)
-            .map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_string)
+                    .collect()
+            })
             .unwrap_or_default(),
         time: ev.get("time").and_then(Value::as_f64).unwrap_or_default(),
     })

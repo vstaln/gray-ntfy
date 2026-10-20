@@ -153,12 +153,10 @@ fn resolve_gray(explicit: &str) -> Option<String> {
     let names: Vec<String> = {
         #[cfg(windows)]
         {
-            [
-                ".exe", ".cmd", ".bat", ".com", ".ps1", "",
-            ]
-            .iter()
-            .map(|ext| format!("{candidate}{ext}"))
-            .collect()
+            [".exe", ".cmd", ".bat", ".com", ".ps1", ""]
+                .iter()
+                .map(|ext| format!("{candidate}{ext}"))
+                .collect()
         }
         #[cfg(not(windows))]
         {
@@ -269,9 +267,8 @@ pub async fn run(path: &Path, io: &mut dyn Prompter) -> Result<bool, String> {
         }
     };
 
-    let token = io.prompt_hidden(
-        "Auth token (ntfy access token, or user:pass; empty for none): ",
-    )?;
+    let token =
+        io.prompt_hidden("Auth token (ntfy access token, or user:pass; empty for none): ")?;
 
     let markdown = {
         let a = io.prompt("Send markdown bodies? [Y/n] ")?;

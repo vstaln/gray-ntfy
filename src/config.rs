@@ -85,9 +85,7 @@ fn int_in(data: &Value, key: &str, low: u64, high: u64) -> Result<(), String> {
 
 /// One allowlist token: a title or tag a message must carry to reach gray.
 pub fn token_valid(s: &str) -> bool {
-    !s.is_empty()
-        && s.len() <= 64
-        && s.bytes().all(|b| b.is_ascii_graphic())
+    !s.is_empty() && s.len() <= 64 && s.bytes().all(|b| b.is_ascii_graphic())
 }
 
 /// Validate a config object. Error texts never echo config values.

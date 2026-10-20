@@ -66,8 +66,12 @@ pub enum QueueAction {
 #[derive(Debug, Clone, Subcommand)]
 pub enum AllowlistAction {
     /// Allow a title/tag token: messages carrying it reach gray.
-    Add { token: String },
-    Remove { token: String },
+    Add {
+        token: String,
+    },
+    Remove {
+        token: String,
+    },
     List,
 }
 
@@ -199,7 +203,12 @@ fn allowlist(action: &AllowlistAction, config_path: &Path) -> Result<(), String>
     let mut allowed: Vec<String> = config
         .get("allow")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect()
+        })
         .unwrap_or_default();
     match action {
         AllowlistAction::Add { token } => {
@@ -209,16 +218,14 @@ fn allowlist(action: &AllowlistAction, config_path: &Path) -> Result<(), String>
             if !allowed.iter().any(|t| t.eq_ignore_ascii_case(token)) {
                 allowed.push(token.clone());
             }
-            config["allow"] =
-                Value::Array(allowed.into_iter().map(Value::String).collect());
+            config["allow"] = Value::Array(allowed.into_iter().map(Value::String).collect());
             crate::config::save_config(config_path, &config)?;
             println!("{token} allowed; restart the gateway to apply.");
             Ok(())
         }
         AllowlistAction::Remove { token } => {
             allowed.retain(|t| !t.eq_ignore_ascii_case(token));
-            config["allow"] =
-                Value::Array(allowed.into_iter().map(Value::String).collect());
+            config["allow"] = Value::Array(allowed.into_iter().map(Value::String).collect());
             crate::config::save_config(config_path, &config)?;
             println!("{token} removed; restart the gateway to apply.");
             Ok(())
