@@ -11,6 +11,7 @@ pub static MANIFEST: LazyLock<Value> = LazyLock::new(|| {
         "version": env!("CARGO_PKG_VERSION"),
         "protocol": "1.1",
         "commands": ["/ntfy"],
+        "command_descriptions": {"/ntfy": "set up and manage the ntfy gateway"},
         "hooks": ["prompt/context"],
         "tools": [{
             "name": "ntfy_send",
