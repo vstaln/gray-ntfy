@@ -10,6 +10,7 @@ pub static MANIFEST: LazyLock<Value> = LazyLock::new(|| {
         "name": "ntfy",
         "version": env!("CARGO_PKG_VERSION"),
         "protocol": "1.1",
+        "description": "send phone notifications through ntfy",
         "commands": [],
         "hooks": ["prompt/context"],
         "tools": [{
